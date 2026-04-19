@@ -669,7 +669,7 @@ function renderTable(rows) {
     <tr>
       <td class="td-date">${escHtml(r.date)}</td>
       <td class="td-source"><span class="source-icon">${sourceIcon(r.platform)}</span>${escHtml(r.author||"—")}</td>
-      <td class="td-mention"><span class="td-mention-text" title="${escHtml(r.content)}">${r.content ? escHtml(r.content) : '<em style="color:var(--text-lo)">No content (Instagram)</em>'}</span></td>
+      <td class="td-mention"><span class="td-mention-text" title="${escHtml(r.content)}">${r.content ? escHtml(r.content) : '<em style="color:var(--text-lo)">API restricted</em>'}</span></td>
       <td class="td-source">${escHtml(r.platform||"—")}</td>
       <td>${sentimentBadge(r.sentiment)}</td>
       <td class="td-url">${r.url ? `<a href="${escHtml(r.url)}" target="_blank" rel="noopener">View ↗</a>` : "—"}</td>
