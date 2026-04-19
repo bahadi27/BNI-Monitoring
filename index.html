@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Danantara — Brand Monitoring Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ─── CONFIGURATION NOTICE ─────────────────────────────────────────
+     Replace SHEET_ID in the JS below with your Google Sheet ID.
+     Sheet columns must be in this exact order:
+     A: Date | B: Author | C: Content | D: Platform | E: URL | F: Sentiment
+     Sentiment values: Positive / Neutral / Negative (capitalised text)
+  ─────────────────────────────────────────────────────────────────── */
+
+  :root {
+    --bg-root:    #05090F;
+    --bg-card:    #0C1825;
+    --bg-panel:   #101F33;
+    --bg-hover:   #14273F;
+    --border:     rgba(180,145,60,0.18);
+    --border-med: rgba(180,145,60,0.35);
+    --gold:       #C9A84C;
+    --gold-light: #E2C878;
+    --gold-glow:  rgba(201,168,76,0.12);
+    --text-hi:    #F2EDE0;
+    --text-mid:   #A8B4C0;
+    --text-lo:    #4A5868;
+    --positive:   #4BA888;
+    --negative:   #D95C5C;
+    --neutral:    #6A88A8;
+    --radius:     10px;
+    --transition: 0.22s ease;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg-root);
+    color: var(--text-hi);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid texture */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none; z-index:0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative; z-index:10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 36px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(12,24,37,0.98), rgba(5,9,15,0.90));
+    backdrop-filter: blur(12px);
+  }
+
+  .header-left { display:flex; align-items:center; gap:16px; }
+
+  .logo-mark {
+    width: 42px; height:42px;
+    background: linear-gradient(135deg, var(--gold), #8B6820);
+    border-radius: 8px;
+    display: flex; align-items:center; justify-content:center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 700;
+    color: #05090F; letter-spacing:-1px;
+    box-shadow: 0 0 20px rgba(201,168,76,0.25);
+  }
+
+  .header-title h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 700;
+    color: var(--text-hi); line-height:1.1;
+    letter-spacing: 0.3px;
+  }
+  .header-title span {
+    font-size: 11px; font-weight:400;
+    color: var(--text-mid); letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .header-right { display:flex; align-items:center; gap:20px; }
+
+  .live-badge {
+    display:flex; align-items:center; gap:7px;
+    font-size:11px; font-weight:500;
+    color: var(--gold); letter-spacing:1.5px;
+    text-transform:uppercase;
+  }
+  .live-dot {
+    width:7px; height:7px;
+    border-radius:50%;
+    background: var(--gold);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(201,168,76,0.4); }
+    50%      { opacity:0.6; box-shadow: 0 0 0 5px rgba(201,168,76,0); }
+  }
+
+  .last-updated {
+    font-size: 11px; color: var(--text-lo);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    position:relative; z-index:1;
+    padding: 28px 36px 48px;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    display:flex; align-items:center; gap:12px;
+    margin-bottom: 28px; flex-wrap:wrap;
+  }
+
+  .search-wrap {
+    position:relative; flex:1; min-width:220px; max-width:400px;
+  }
+  .search-wrap svg {
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    color: var(--text-lo); pointer-events:none;
+  }
+  .search-input {
+    width:100%; padding: 10px 14px 10px 38px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-hi); font-family:'DM Sans',sans-serif; font-size:13px;
+    outline:none; transition: border var(--transition), box-shadow var(--transition);
+  }
+  .search-input::placeholder { color: var(--text-lo); }
+  .search-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+  }
+
+  .filter-select {
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-hi); font-family:'DM Sans',sans-serif; font-size:13px;
+    outline:none; cursor:pointer;
+    transition: border var(--transition);
+    appearance:none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A5868' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position: right 12px center;
+    padding-right:34px;
+  }
+  .filter-select:focus { border-color: var(--gold); }
+
+  .refresh-btn {
+    display:flex; align-items:center; gap:7px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, var(--gold), #8B6820);
+    border:none; border-radius: var(--radius);
+    color: #05090F; font-family:'DM Sans',sans-serif;
+    font-size:13px; font-weight:600;
+    cursor:pointer; letter-spacing:0.3px;
+    transition: opacity var(--transition), transform var(--transition);
+    box-shadow: 0 4px 16px rgba(201,168,76,0.2);
+  }
+  .refresh-btn:hover { opacity:0.88; transform:translateY(-1px); }
+  .refresh-btn:active { transform:translateY(0); }
+  .refresh-btn svg { width:14px; height:14px; }
+
+  /* ── STAT CARDS ── */
+  .stats-grid {
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap:16px; margin-bottom:24px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    position:relative; overflow:hidden;
+    transition: border-color var(--transition), transform var(--transition);
+  }
+  .stat-card:hover { border-color: var(--border-med); transform:translateY(-2px); }
+  .stat-card::before {
+    content:''; position:absolute; inset:0;
+    background: linear-gradient(135deg, var(--gold-glow), transparent 60%);
+    opacity:0; transition: opacity var(--transition);
+  }
+  .stat-card:hover::before { opacity:1; }
+
+  .stat-label {
+    font-size:11px; color: var(--text-lo); font-weight:500;
+    letter-spacing:1.8px; text-transform:uppercase; margin-bottom:10px;
+  }
+  .stat-value {
+    font-family:'Cormorant Garamond',serif;
+    font-size:36px; font-weight:700;
+    color: var(--text-hi); line-height:1;
+  }
+  .stat-sub {
+    font-size:11px; color: var(--text-mid); margin-top:6px;
+  }
+  .stat-card.accent .stat-value { color: var(--gold); }
+  .stat-card.positive .stat-value { color: var(--positive); }
+  .stat-card.negative .stat-value { color: var(--negative); }
+
+  /* ── MIDDLE ROW ── */
+  .mid-row {
+    display:grid;
+    grid-template-columns: 1fr 320px;
+    gap:16px; margin-bottom:24px;
+  }
+
+  /* ── CHART CARD ── */
+  .chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .card-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .card-title {
+    font-family:'Cormorant Garamond',serif;
+    font-size:17px; font-weight:600; color: var(--text-hi);
+  }
+  .card-badge {
+    font-size:11px; color: var(--gold); background: var(--gold-glow);
+    border: 1px solid var(--border); border-radius:20px;
+    padding:3px 10px; letter-spacing:0.5px;
+  }
+
+  .chart-container { position:relative; height:220px; }
+
+  /* Donut card */
+  .donut-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    display:flex; flex-direction:column;
+  }
+  .donut-wrap {
+    position:relative; height:160px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .donut-center {
+    position:absolute; text-align:center; pointer-events:none;
+  }
+  .donut-center-val {
+    font-family:'Cormorant Garamond',serif;
+    font-size:28px; font-weight:700; color: var(--text-hi);
+  }
+  .donut-center-lbl {
+    font-size:10px; color: var(--text-lo); letter-spacing:1px; text-transform:uppercase;
+  }
+
+  .sentiment-legend {
+    display:flex; flex-direction:column; gap:10px; margin-top:18px;
+  }
+  .legend-item {
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px;
+  }
+  .legend-dot {
+    width:8px; height:8px; border-radius:50%; margin-right:8px; flex-shrink:0;
+  }
+  .legend-label { display:flex; align-items:center; color: var(--text-mid); }
+  .legend-val { font-weight:600; color: var(--text-hi); }
+
+  /* ── TABLE CARD ── */
+  .table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow:hidden;
+  }
+  .table-card .card-header { padding: 20px 24px 0; }
+
+  .table-scroll { overflow-x:auto; }
+
+  table {
+    width:100%; border-collapse:collapse;
+  }
+  thead th {
+    padding: 10px 16px;
+    font-size:10px; font-weight:500;
+    color: var(--text-lo); letter-spacing:1.8px; text-transform:uppercase;
+    border-bottom: 1px solid var(--border);
+    text-align:left; white-space:nowrap;
+    background: var(--bg-root);
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(180,145,60,0.07);
+    transition: background var(--transition);
+  }
+  tbody tr:hover { background: var(--bg-hover); }
+  tbody tr:last-child { border-bottom:none; }
+  tbody td {
+    padding: 13px 16px;
+    font-size:13px; color: var(--text-mid);
+    vertical-align:middle;
+  }
+  .td-date { white-space:nowrap; font-size:12px; color: var(--text-lo); }
+  .td-mention { color: var(--text-hi); max-width:320px; }
+  .td-mention-text {
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:300px; display:block;
+  }
+  .td-source {
+    font-size:12px; white-space:nowrap;
+    display:flex; align-items:center; gap:6px;
+  }
+  .source-icon {
+    width:18px; height:18px; border-radius:4px;
+    background: var(--bg-panel);
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:700;
+    color: var(--gold); flex-shrink:0;
+  }
+
+  .badge {
+    display:inline-block; padding:3px 9px;
+    border-radius:20px; font-size:11px; font-weight:500;
+    white-space:nowrap;
+  }
+  .badge-positive { background:rgba(75,168,136,0.15); color: var(--positive); border:1px solid rgba(75,168,136,0.3); }
+  .badge-negative { background:rgba(217,92,92,0.15);  color: var(--negative);  border:1px solid rgba(217,92,92,0.3); }
+  .badge-neutral  { background:rgba(106,136,168,0.15); color: var(--neutral);  border:1px solid rgba(106,136,168,0.3); }
+
+  .td-reach { white-space:nowrap; font-variant-numeric: tabular-nums; }
+  .td-url a {
+    color: var(--gold); text-decoration:none; font-size:12px;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+    transition: border-color var(--transition);
+  }
+  .td-url a:hover { border-color: var(--gold); }
+
+  /* ── EMPTY / LOADING STATES ── */
+  .state-row td {
+    text-align:center; padding:48px;
+    color: var(--text-lo); font-size:13px;
+  }
+  .state-icon { font-size:28px; margin-bottom:10px; display:block; }
+
+  /* ── SETUP BANNER ── */
+  .setup-banner {
+    background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(139,104,32,0.04));
+    border: 1px solid var(--border-med);
+    border-radius: var(--radius); padding:16px 22px;
+    margin-bottom:24px;
+    display:flex; align-items:flex-start; gap:14px;
+  }
+  .setup-banner.hidden { display:none; }
+  .setup-icon { font-size:22px; flex-shrink:0; margin-top:2px; }
+  .setup-text h3 {
+    font-size:14px; font-weight:600; color: var(--gold); margin-bottom:4px;
+  }
+  .setup-text p { font-size:12px; color: var(--text-mid); line-height:1.6; }
+  .setup-text code {
+    background: rgba(201,168,76,0.1); border:1px solid var(--border);
+    padding:1px 6px; border-radius:4px;
+    font-family:monospace; font-size:11px; color: var(--gold-light);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    position:relative; z-index:1;
+    text-align:center; padding:20px;
+    font-size:11px; color: var(--text-lo);
+    border-top: 1px solid var(--border);
+    letter-spacing:1px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width:900px) {
+    main { padding:20px 16px; }
+    header { padding:16px 20px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .mid-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width:540px) {
+    .stats-grid { grid-template-columns:1fr; }
+    .header-right { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ─────────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <div class="logo-mark">D</div>
+    <div class="header-title">
+      <h1>Danantara Indonesia</h1>
+      <span>Brand Monitoring Dashboard</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div>Live Feed</div>
+    <div class="last-updated" id="lastUpdated">—</div>
+  </div>
+</header>
+
+<!-- ─── MAIN ────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Setup Banner (visible until Sheet ID is configured) -->
+  <div class="setup-banner" id="setupBanner">
+    <div class="setup-icon">⚙️</div>
+    <div class="setup-text">
+      <h3>Setup Required — Connect Your Google Sheet</h3>
+      <p>
+        Open this file and find <code>const SHEET_ID = "1otSZvSsZDXwjqX2clv-ua-ROajlKGBu9SWA2HyuURl4"</code> near the top of the &lt;script&gt;.
+        Paste your Google Sheet ID there. Your sheet columns must be:
+        <strong style="color:var(--text-hi)">A: Date &nbsp;|&nbsp; B: Author &nbsp;|&nbsp; C: Content &nbsp;|&nbsp; D: Platform &nbsp;|&nbsp; E: URL &nbsp;|&nbsp; F: Sentiment</strong>.
+        Sentiment values: <code>Positive</code> / <code>Neutral</code> / <code>Negative</code>.
+        Make sure the sheet is shared as <em>"Anyone with the link can view"</em>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="search-input" type="text" id="keywordFilter" placeholder="Filter by keyword…">
+    </div>
+    <select class="filter-select" id="sentimentFilter">
+      <option value="">All Sentiments</option>
+      <option value="positive">Positive</option>
+      <option value="neutral">Neutral</option>
+      <option value="negative">Negative</option>
+    </select>
+    <select class="filter-select" id="sourceFilter">
+      <option value="">All Platforms</option>
+    </select>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Refresh
+    </button>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stats-grid">
+    <div class="stat-card accent">
+      <div class="stat-label">Total Mentions</div>
+      <div class="stat-value" id="totalMentions">—</div>
+      <div class="stat-sub">All time in sheet</div>
+    </div>
+    <div class="stat-card positive">
+      <div class="stat-label">Positive</div>
+      <div class="stat-value" id="totalPositive">—</div>
+      <div class="stat-sub" id="positivePct">—% of total</div>
+    </div>
+    <div class="stat-card negative">
+      <div class="stat-label">Negative</div>
+      <div class="stat-value" id="totalNegative">—</div>
+      <div class="stat-sub" id="negativePct">—% of total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Neutral</div>
+      <div class="stat-value" id="totalReach">—</div>
+      <div class="stat-sub" id="neutralPct">—% of total</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="mid-row">
+    <!-- Timeline Bar Chart -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Mention Volume Over Time</div>
+        <div class="card-badge">Last 14 days</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="timelineChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Sentiment Donut -->
+    <div class="donut-card">
+      <div class="card-header">
+        <div class="card-title">Sentiment Split</div>
+      </div>
+      <div class="donut-wrap">
+        <canvas id="sentimentChart" width="160" height="160" style="max-width:160px;max-height:160px;"></canvas>
+        <div class="donut-center">
+          <div class="donut-center-val" id="donutTotal">—</div>
+          <div class="donut-center-lbl">Mentions</div>
+        </div>
+      </div>
+      <div class="sentiment-legend">
+        <div class="legend-item">
+          <div class="legend-label"><div class="legend-dot" style="background:var(--positive)"></div>Positive</div>
+          <div class="legend-val" id="lgPositive">—</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-label"><div class="legend-dot" style="background:var(--neutral)"></div>Neutral</div>
+          <div class="legend-val" id="lgNeutral">—</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-label"><div class="legend-dot" style="background:var(--negative)"></div>Negative</div>
+          <div class="legend-val" id="lgNegative">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Feed Table -->
+  <div class="table-card">
+    <div class="card-header" style="margin-bottom:0; padding-bottom:16px;">
+      <div class="card-title">Live Mention Feed</div>
+      <div class="card-badge" id="feedCount">0 mentions</div>
+    </div>
+    <div class="table-scroll">
+      <table id="mentionsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Author</th>
+            <th>Content</th>
+            <th>Platform</th>
+            <th>Sentiment</th>
+            <th>URL</th>
+          </tr>
+        </thead>
+        <tbody id="mentionsBody">
+          <tr class="state-row"><td colspan="6"><span class="state-icon">⏳</span>Loading data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  DANANTARA INDONESIA &nbsp;·&nbsp; Brand Intelligence &nbsp;·&nbsp; Powered by Clabstream
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   ⚙️  CONFIGURATION  — edit this one value
+   ═══════════════════════════════════════════════════════════════ */
+const SHEET_ID   = "";          // ← paste your Google Sheet ID here
+const SHEET_NAME = "Sheet1";    // ← change if your tab name differs
+const REFRESH_INTERVAL = 60;    // seconds between auto-refresh
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOBALS
+   ═══════════════════════════════════════════════════════════════ */
+let allRows      = [];
+let timelineInst = null;
+let donutInst    = null;
+let refreshTimer = null;
+let countdown    = REFRESH_INTERVAL;
+
+/* ═══════════════════════════════════════════════════════════════
+   LOAD DATA FROM GOOGLE SHEETS
+   ═══════════════════════════════════════════════════════════════ */
+async function loadData() {
+  if (!SHEET_ID) {
+    showState("⚙️", "Configure your Sheet ID in the script to see data.");
+    return;
+  }
+
+  document.getElementById("setupBanner").classList.add("hidden");
+  showState("⏳", "Fetching latest mentions…");
+
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+  try {
+    const res  = await fetch(url);
+    const text = await res.text();
+
+    // Strip JSONP wrapper: google.visualization.Query.setResponse({...});
+    const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    const rows = json.table.rows;
+
+    allRows = rows.map(r => {
+      const c = r.c || [];
+      const val = (i) => (c[i] && c[i].v !== null && c[i].v !== undefined) ? String(c[i].v).trim() : "";
+      return {
+        date:      val(0),
+        author:    val(1),
+        content:   val(2),
+        platform:  val(3),
+        url:       val(4),
+        sentiment: val(5).toLowerCase(),
+      };
+    }).filter(r => r.date);
+
+    updateSourceFilter();
+    renderAll();
+    updateTimestamp();
+    startCountdown();
+  } catch(e) {
+    showState("⚠️", `Could not load data. Check your Sheet ID and sharing settings. (${e.message})`);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FILTER & RENDER
+   ═══════════════════════════════════════════════════════════════ */
+function filteredRows() {
+  const kw  = document.getElementById("keywordFilter").value.toLowerCase();
+  const sen = document.getElementById("sentimentFilter").value.toLowerCase();
+  const src = document.getElementById("sourceFilter").value.toLowerCase();
+  return allRows.filter(r =>
+    (!kw  || (r.content||"").toLowerCase().includes(kw) || (r.author||"").toLowerCase().includes(kw)) &&
+    (!sen || r.sentiment === sen) &&
+    (!src || (r.platform||"").toLowerCase() === src)
+  );
+}
+
+function renderAll() {
+  const rows = filteredRows();
+  renderStats(rows);
+  renderTable(rows);
+  renderTimeline(rows);
+  renderDonut(rows);
+  document.getElementById("feedCount").textContent = `${rows.length} mention${rows.length!==1?"s":""}`;
+}
+
+/* ── STATS ── */
+function renderStats(rows) {
+  const pos = rows.filter(r => r.sentiment === "positive").length;
+  const neg = rows.filter(r => r.sentiment === "negative").length;
+  const tot = rows.length;
+
+  document.getElementById("totalMentions").textContent = fmt(tot);
+  document.getElementById("totalPositive").textContent = fmt(pos);
+  document.getElementById("totalNegative").textContent = fmt(neg);
+  document.getElementById("totalReach").textContent    = fmt(rows.filter(r => r.sentiment === "neutral").length);
+  document.getElementById("positivePct").textContent   = `${tot ? Math.round(pos/tot*100) : 0}% of total`;
+  document.getElementById("negativePct").textContent   = `${tot ? Math.round(neg/tot*100) : 0}% of total`;
+  const neu2 = tot - pos - neg;
+  if (document.getElementById("neutralPct"))
+    document.getElementById("neutralPct").textContent = `${tot ? Math.round(neu2/tot*100) : 0}% of total`;
+}
+
+/* ── TABLE ── */
+function renderTable(rows) {
+  const tbody = document.getElementById("mentionsBody");
+  if (!rows.length) {
+    tbody.innerHTML = `<tr class="state-row"><td colspan="6"><span class="state-icon">🔍</span>No mentions match your filters.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="td-date">${escHtml(r.date)}</td>
+      <td class="td-source"><span class="source-icon">${sourceIcon(r.platform)}</span>${escHtml(r.author||"—")}</td>
+      <td class="td-mention"><span class="td-mention-text" title="${escHtml(r.content)}">${r.content ? escHtml(r.content) : '<em style="color:var(--text-lo)">No content (Instagram)</em>'}</span></td>
+      <td class="td-source">${escHtml(r.platform||"—")}</td>
+      <td>${sentimentBadge(r.sentiment)}</td>
+      <td class="td-url">${r.url ? `<a href="${escHtml(r.url)}" target="_blank" rel="noopener">View ↗</a>` : "—"}</td>
+    </tr>
+  `).join("");
+}
+
+/* ── TIMELINE CHART ── */
+function renderTimeline(rows) {
+  const buckets = {};
+  rows.forEach(r => {
+    const key = r.date.slice(0,10) || "Unknown";
+    buckets[key] = (buckets[key] || 0) + 1;
+  });
+
+  const labels = Object.keys(buckets).sort().slice(-14);
+  const data   = labels.map(l => buckets[l]);
+
+  const ctx = document.getElementById("timelineChart").getContext("2d");
+
+  if (timelineInst) timelineInst.destroy();
+
+  const gradient = ctx.createLinearGradient(0,0,0,220);
+  gradient.addColorStop(0, "rgba(201,168,76,0.25)");
+  gradient.addColorStop(1, "rgba(201,168,76,0.01)");
+
+  timelineInst = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Mentions",
+        data,
+        backgroundColor: gradient,
+        borderColor: "rgba(201,168,76,0.7)",
+        borderWidth: 1.5,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          backgroundColor:"#0C1825", borderColor:"rgba(201,168,76,0.4)", borderWidth:1,
+          titleColor:"#C9A84C", bodyColor:"#A8B4C0",
+          padding:10, cornerRadius:8,
+        }
+      },
+      scales: {
+        x: {
+          grid: { color:"rgba(255,255,255,0.04)" },
+          ticks: { color:"#4A5868", font:{size:11} }
+        },
+        y: {
+          grid: { color:"rgba(255,255,255,0.04)" },
+          ticks: { color:"#4A5868", font:{size:11}, precision:0 },
+          beginAtZero:true
+        }
+      }
+    }
+  });
+}
+
+/* ── DONUT CHART ── */
+function renderDonut(rows) {
+  const pos = rows.filter(r => r.sentiment === "positive").length;
+  const neg = rows.filter(r => r.sentiment === "negative").length;
+  const neu = rows.filter(r => r.sentiment !== "positive" && r.sentiment !== "negative").length;
+  const tot = rows.length;
+
+  document.getElementById("donutTotal").textContent = fmt(tot);
+  document.getElementById("lgPositive").textContent = fmt(pos);
+  document.getElementById("lgNeutral").textContent  = fmt(neu);
+  document.getElementById("lgNegative").textContent = fmt(neg);
+
+  const ctx = document.getElementById("sentimentChart").getContext("2d");
+  if (donutInst) donutInst.destroy();
+
+  donutInst = new Chart(ctx, {
+    type:"doughnut",
+    data: {
+      labels:["Positive","Neutral","Negative"],
+      datasets:[{
+        data: [pos, neu, neg],
+        backgroundColor:["rgba(75,168,136,0.85)","rgba(106,136,168,0.85)","rgba(217,92,92,0.85)"],
+        borderColor:["#4BA888","#6A88A8","#D95C5C"],
+        borderWidth:1.5,
+        hoverOffset:6,
+      }]
+    },
+    options: {
+      cutout:"72%",
+      responsive:true, maintainAspectRatio:true,
+      plugins: {
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:"#0C1825", borderColor:"rgba(201,168,76,0.4)", borderWidth:1,
+          titleColor:"#C9A84C", bodyColor:"#A8B4C0",
+          padding:10, cornerRadius:8,
+        }
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function showState(icon, msg) {
+  document.getElementById("mentionsBody").innerHTML =
+    `<tr class="state-row"><td colspan="6"><span class="state-icon">${icon}</span>${msg}</td></tr>`;
+}
+
+function updateTimestamp() {
+  const now = new Date();
+  document.getElementById("lastUpdated").textContent =
+    `Updated ${now.toLocaleTimeString("id-ID", {hour:"2-digit",minute:"2-digit"})} WIB`;
+}
+
+function updateSourceFilter() {
+  const sources = [...new Set(allRows.map(r => r.platform).filter(Boolean))].sort();
+  const sel = document.getElementById("sourceFilter");
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">All Platforms</option>` +
+    sources.map(s => `<option value="${s.toLowerCase()}"${s.toLowerCase()===cur?" selected":""}>${escHtml(s)}</option>`).join("");
+}
+
+function sentimentBadge(s) {
+  if (s === "positive") return `<span class="badge badge-positive">✦ Positive</span>`;
+  if (s === "negative") return `<span class="badge badge-negative">✦ Negative</span>`;
+  return `<span class="badge badge-neutral">◈ Neutral</span>`;
+}
+
+function sourceIcon(s) {
+  const map = {
+    twitter:"𝕏", x:"𝕏", instagram:"IG", facebook:"FB", youtube:"YT",
+    tiktok:"TK", linkedin:"LI", news:"N", blog:"BL", kompas:"KM",
+    detik:"DK", tribun:"TR", cnbc:"CB",
+  };
+  const k = (s||"").toLowerCase().split(".")[0];
+  for (const [key, icon] of Object.entries(map)) {
+    if (k.includes(key)) return icon;
+  }
+  return (s||"?").slice(0,2).toUpperCase();
+}
+
+function fmt(n)       { return n.toLocaleString("id-ID"); }
+function fmtReach(n)  {
+  if (n >= 1_000_000) return (n/1_000_000).toFixed(1)+"M";
+  if (n >= 1_000)     return (n/1_000).toFixed(1)+"K";
+  return n.toLocaleString("id-ID");
+}
+function escHtml(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ── AUTO-REFRESH COUNTDOWN ── */
+function startCountdown() {
+  clearInterval(refreshTimer);
+  countdown = REFRESH_INTERVAL;
+  refreshTimer = setInterval(() => {
+    countdown--;
+    document.getElementById("lastUpdated").textContent =
+      `Auto-refresh in ${countdown}s`;
+    if (countdown <= 0) loadData();
+  }, 1000);
+}
+
+/* ── FILTER EVENTS ── */
+document.getElementById("keywordFilter").addEventListener("input", renderAll);
+document.getElementById("sentimentFilter").addEventListener("change", renderAll);
+document.getElementById("sourceFilter").addEventListener("change", renderAll);
+
+/* ── INIT ── */
+if (!SHEET_ID) {
+  document.getElementById("totalMentions").textContent = "—";
+  document.getElementById("totalPositive").textContent = "—";
+  document.getElementById("totalNegative").textContent = "—";
+  document.getElementById("totalReach").textContent    = "—";
+  showState("⚙️", "Paste your Google Sheet ID in the script to begin.");
+} else {
+  loadData();
+}
+</script>
+</body>
+</html>
