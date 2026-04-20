@@ -1,539 +1,858 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Danantara — Brand Monitoring Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Danantara — Brand Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  /* ─── CONFIGURATION NOTICE ─────────────────────────────────────────
-     Replace SHEET_ID in the JS below with your Google Sheet ID.
-     Sheet columns must be in this exact order:
-     A: Date | B: Author | C: Content | D: Platform | E: URL | F: Sentiment
-     Sentiment values: Positive / Neutral / Negative (capitalised text)
-  ─────────────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #080b10;
+  --bg2:       #0d1117;
+  --bg3:       #12171f;
+  --bg4:       #181e28;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --gold:      #c9974a;
+  --gold-l:    #e8b96a;
+  --gold-dim:  rgba(201,151,74,0.15);
+  --gold-glow: rgba(201,151,74,0.08);
+  --teal:      #2dd4bf;
+  --teal-dim:  rgba(45,212,191,0.12);
+  --red:       #f87171;
+  --red-dim:   rgba(248,113,113,0.12);
+  --blue:      #60a5fa;
+  --blue-dim:  rgba(96,165,250,0.12);
+  --text:      #e8edf5;
+  --text2:     #8896aa;
+  --text3:     #4a5668;
+  --pos:       #34d399;
+  --pos-dim:   rgba(52,211,153,0.12);
+  --neg:       #f87171;
+  --neg-dim:   rgba(248,113,113,0.12);
+  --neu:       #94a3b8;
+  --neu-dim:   rgba(148,163,184,0.1);
+}
 
-  :root {
-    --bg-root:    #05090F;
-    --bg-card:    #0C1825;
-    --bg-panel:   #101F33;
-    --bg-hover:   #14273F;
-    --border:     rgba(180,145,60,0.18);
-    --border-med: rgba(180,145,60,0.35);
-    --gold:       #C9A84C;
-    --gold-light: #E2C878;
-    --gold-glow:  rgba(201,168,76,0.12);
-    --text-hi:    #F2EDE0;
-    --text-mid:   #A8B4C0;
-    --text-lo:    #4A5868;
-    --positive:   #4BA888;
-    --negative:   #D95C5C;
-    --neutral:    #6A88A8;
-    --radius:     10px;
-    --transition: 0.22s ease;
-  }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
 
-  body {
-    background: var(--bg-root);
-    color: var(--text-hi);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 400;
-    font-size: 14px;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Instrument Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-  /* Subtle grid texture */
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background-image:
-      linear-gradient(rgba(201,168,76,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(201,168,76,0.025) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events:none; z-index:0;
-  }
+/* Subtle grid texture */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(201,151,74,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,151,74,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
 
-  /* ── HEADER ── */
-  header {
-    position: relative; z-index:10;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 36px;
-    border-bottom: 1px solid var(--border);
-    background: linear-gradient(180deg, rgba(12,24,37,0.98), rgba(5,9,15,0.90));
-    backdrop-filter: blur(12px);
-  }
+/* Radial ambient light */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(201,151,74,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
 
-  .header-left { display:flex; align-items:center; gap:16px; }
+.wrap { position: relative; z-index: 1; }
 
-  .logo-mark {
-    width: 42px; height:42px;
-    background: linear-gradient(135deg, var(--gold), #8B6820);
-    border-radius: 8px;
-    display: flex; align-items:center; justify-content:center;
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 22px; font-weight: 700;
-    color: #05090F; letter-spacing:-1px;
-    box-shadow: 0 0 20px rgba(201,168,76,0.25);
-  }
+/* ─── HEADER ─── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 64px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(8,11,16,0.9);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+}
 
-  .header-title h1 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 20px; font-weight: 700;
-    color: var(--text-hi); line-height:1.1;
-    letter-spacing: 0.3px;
-  }
-  .header-title span {
-    font-size: 11px; font-weight:400;
-    color: var(--text-mid); letter-spacing: 2px;
-    text-transform: uppercase;
-  }
+.logo {
+  display: flex; align-items: center; gap: 14px;
+}
 
-  .header-right { display:flex; align-items:center; gap:20px; }
+.logo-emblem {
+  width: 34px; height: 34px; position: relative;
+}
+.logo-emblem svg { width: 100%; height: 100%; }
 
-  .live-badge {
-    display:flex; align-items:center; gap:7px;
-    font-size:11px; font-weight:500;
-    color: var(--gold); letter-spacing:1.5px;
-    text-transform:uppercase;
-  }
-  .live-dot {
-    width:7px; height:7px;
-    border-radius:50%;
-    background: var(--gold);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(201,168,76,0.4); }
-    50%      { opacity:0.6; box-shadow: 0 0 0 5px rgba(201,168,76,0); }
-  }
+.logo-text { line-height: 1; }
+.logo-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+.logo-tagline {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 0.12em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
 
-  .last-updated {
-    font-size: 11px; color: var(--text-lo);
-    letter-spacing: 0.5px;
-  }
+.header-right { display: flex; align-items: center; gap: 16px; }
 
-  /* ── MAIN LAYOUT ── */
-  main {
-    position:relative; z-index:1;
-    padding: 28px 36px 48px;
-    max-width: 1440px;
-    margin: 0 auto;
-  }
+.live-indicator {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--red-dim);
+  border: 1px solid rgba(248,113,113,0.25);
+  padding: 5px 12px; border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--red);
+  letter-spacing: 0.08em;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--red);
+  animation: pulse 1.8s ease infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
 
-  /* ── FILTER BAR ── */
-  .filter-bar {
-    display:flex; align-items:center; gap:12px;
-    margin-bottom: 28px; flex-wrap:wrap;
-  }
+.header-clock {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--text3);
+  letter-spacing: 0.06em;
+}
 
-  .search-wrap {
-    position:relative; flex:1; min-width:220px; max-width:400px;
-  }
-  .search-wrap svg {
-    position:absolute; left:13px; top:50%; transform:translateY(-50%);
-    color: var(--text-lo); pointer-events:none;
-  }
-  .search-input {
-    width:100%; padding: 10px 14px 10px 38px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-hi); font-family:'DM Sans',sans-serif; font-size:13px;
-    outline:none; transition: border var(--transition), box-shadow var(--transition);
-  }
-  .search-input::placeholder { color: var(--text-lo); }
-  .search-input:focus {
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px var(--gold-glow);
-  }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text2); font-size: 12px;
+  cursor: pointer; border-radius: 6px;
+  font-family: 'Instrument Sans', sans-serif;
+  transition: all 0.2s;
+}
+.btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+.btn svg { width: 13px; height: 13px; }
 
-  .filter-select {
-    padding: 10px 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-hi); font-family:'DM Sans',sans-serif; font-size:13px;
-    outline:none; cursor:pointer;
-    transition: border var(--transition);
-    appearance:none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A5868' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position: right 12px center;
-    padding-right:34px;
-  }
-  .filter-select:focus { border-color: var(--gold); }
+.btn-gold {
+  background: var(--gold-dim);
+  border-color: rgba(201,151,74,0.4);
+  color: var(--gold-l);
+}
+.btn-gold:hover { background: rgba(201,151,74,0.25); }
 
-  .refresh-btn {
-    display:flex; align-items:center; gap:7px;
-    padding: 10px 18px;
-    background: linear-gradient(135deg, var(--gold), #8B6820);
-    border:none; border-radius: var(--radius);
-    color: #05090F; font-family:'DM Sans',sans-serif;
-    font-size:13px; font-weight:600;
-    cursor:pointer; letter-spacing:0.3px;
-    transition: opacity var(--transition), transform var(--transition);
-    box-shadow: 0 4px 16px rgba(201,168,76,0.2);
-  }
-  .refresh-btn:hover { opacity:0.88; transform:translateY(-1px); }
-  .refresh-btn:active { transform:translateY(0); }
-  .refresh-btn svg { width:14px; height:14px; }
+/* ─── TICKER ─── */
+.ticker {
+  height: 34px; overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  background: rgba(201,151,74,0.04);
+}
+.ticker-badge {
+  flex-shrink: 0;
+  background: var(--gold);
+  color: #0a0b0d;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; font-weight: 500;
+  letter-spacing: 0.12em;
+  padding: 0 14px; height: 100%;
+  display: flex; align-items: center;
+}
+.ticker-track { overflow: hidden; flex: 1; }
+.ticker-inner {
+  display: flex; gap: 0;
+  animation: tick 36s linear infinite;
+  white-space: nowrap;
+}
+@keyframes tick { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+.ticker-item {
+  display: inline-flex; align-items: center; gap: 20px;
+  padding: 0 32px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text2);
+}
+.ticker-item strong { color: var(--gold-l); }
+.ticker-sep { color: var(--text3); }
 
-  /* ── STAT CARDS ── */
-  .stats-grid {
-    display:grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap:16px; margin-bottom:24px;
-  }
+/* ─── MAIN ─── */
+.main { padding: 28px 32px; display: flex; flex-direction: column; gap: 24px; }
 
-  .stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 22px;
-    position:relative; overflow:hidden;
-    transition: border-color var(--transition), transform var(--transition);
-  }
-  .stat-card:hover { border-color: var(--border-med); transform:translateY(-2px); }
-  .stat-card::before {
-    content:''; position:absolute; inset:0;
-    background: linear-gradient(135deg, var(--gold-glow), transparent 60%);
-    opacity:0; transition: opacity var(--transition);
-  }
-  .stat-card:hover::before { opacity:1; }
+/* ─── SETUP BANNER ─── */
+.setup-banner {
+  background: var(--bg3);
+  border: 1px solid rgba(201,151,74,0.3);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: none;
+}
+.setup-banner.visible { display: block; }
+.setup-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 13px;
+  color: var(--gold-l); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.setup-body {
+  font-size: 13px; color: var(--text2); line-height: 1.7;
+}
+.setup-body code {
+  font-family: 'DM Mono', monospace;
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  padding: 2px 6px; border-radius: 4px;
+  color: var(--gold-l); font-size: 12px;
+}
+.setup-cols {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 14px;
+}
+.setup-field { display: flex; flex-direction: column; gap: 6px; }
+.setup-field label { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; letter-spacing: 0.06em; }
+.setup-field input {
+  background: var(--bg4); border: 1px solid var(--border2);
+  color: var(--text); padding: 9px 12px; border-radius: 6px;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  outline: none; transition: border-color 0.2s;
+}
+.setup-field input:focus { border-color: var(--gold); }
+.setup-field input::placeholder { color: var(--text3); }
 
-  .stat-label {
-    font-size:11px; color: var(--text-lo); font-weight:500;
-    letter-spacing:1.8px; text-transform:uppercase; margin-bottom:10px;
-  }
-  .stat-value {
-    font-family:'Cormorant Garamond',serif;
-    font-size:36px; font-weight:700;
-    color: var(--text-hi); line-height:1;
-  }
-  .stat-sub {
-    font-size:11px; color: var(--text-mid); margin-top:6px;
-  }
-  .stat-card.accent .stat-value { color: var(--gold); }
-  .stat-card.positive .stat-value { color: var(--positive); }
-  .stat-card.negative .stat-value { color: var(--negative); }
+/* ─── FILTERS ─── */
+.filter-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.filter-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text3);
+  letter-spacing: 0.1em;
+}
+.filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2); font-size: 12px;
+  cursor: pointer; font-family: 'Instrument Sans', sans-serif;
+  transition: all 0.2s;
+}
+.pill:hover { border-color: var(--gold); color: var(--gold); }
+.pill.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold-l); }
+.pill.pos-pill.active { background: var(--pos-dim); border-color: var(--pos); color: var(--pos); }
+.pill.neg-pill.active { background: var(--neg-dim); border-color: var(--neg); color: var(--neg); }
+.pill.neu-pill.active { background: var(--neu-dim); border-color: var(--neu); color: var(--neu); }
 
-  /* ── MIDDLE ROW ── */
-  .mid-row {
-    display:grid;
-    grid-template-columns: 1fr 320px;
-    gap:16px; margin-bottom:24px;
-  }
+.filter-divider { width: 1px; height: 20px; background: var(--border); }
 
-  /* ── CHART CARD ── */
-  .chart-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-  }
-  .card-header {
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:20px;
-  }
-  .card-title {
-    font-family:'Cormorant Garamond',serif;
-    font-size:17px; font-weight:600; color: var(--text-hi);
-  }
-  .card-badge {
-    font-size:11px; color: var(--gold); background: var(--gold-glow);
-    border: 1px solid var(--border); border-radius:20px;
-    padding:3px 10px; letter-spacing:0.5px;
-  }
+.search-wrap {
+  position: relative; margin-left: auto;
+}
+.search-wrap input {
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text); padding: 7px 12px 7px 34px;
+  border-radius: 6px; font-size: 12px;
+  outline: none; width: 220px;
+  font-family: 'Instrument Sans', sans-serif;
+  transition: border-color 0.2s;
+}
+.search-wrap input:focus { border-color: var(--gold); }
+.search-wrap input::placeholder { color: var(--text3); }
+.search-icon {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); pointer-events: none;
+}
+.search-icon svg { width: 14px; height: 14px; }
 
-  .chart-container { position:relative; height:220px; }
+/* ─── KPI ROW ─── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 14px;
+}
 
-  /* Donut card */
-  .donut-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-    display:flex; flex-direction:column;
-  }
-  .donut-wrap {
-    position:relative; height:160px;
-    display:flex; align-items:center; justify-content:center;
-  }
-  .donut-center {
-    position:absolute; text-align:center; pointer-events:none;
-  }
-  .donut-center-val {
-    font-family:'Cormorant Garamond',serif;
-    font-size:28px; font-weight:700; color: var(--text-hi);
-  }
-  .donut-center-lbl {
-    font-size:10px; color: var(--text-lo); letter-spacing:1px; text-transform:uppercase;
-  }
+.kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.3s, transform 0.2s;
+  cursor: default;
+}
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-1px); }
 
-  .sentiment-legend {
-    display:flex; flex-direction:column; gap:10px; margin-top:18px;
-  }
-  .legend-item {
-    display:flex; align-items:center; justify-content:space-between;
-    font-size:12px;
-  }
-  .legend-dot {
-    width:8px; height:8px; border-radius:50%; margin-right:8px; flex-shrink:0;
-  }
-  .legend-label { display:flex; align-items:center; color: var(--text-mid); }
-  .legend-val { font-weight:600; color: var(--text-hi); }
+.kpi-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: var(--kpi-accent, transparent);
+}
+.kpi-card.k-gold { --kpi-accent: var(--gold); }
+.kpi-card.k-pos  { --kpi-accent: var(--pos); }
+.kpi-card.k-neg  { --kpi-accent: var(--neg); }
+.kpi-card.k-neu  { --kpi-accent: var(--neu); }
 
-  /* ── TABLE CARD ── */
-  .table-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow:hidden;
-  }
-  .table-card .card-header { padding: 20px 24px 0; }
+.kpi-watermark {
+  position: absolute; right: -8px; bottom: -8px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 56px;
+  opacity: 0.04; color: var(--kpi-accent, white);
+  line-height: 1; user-select: none;
+}
 
-  .table-scroll { overflow-x:auto; }
+.kpi-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text3);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.kpi-value {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 36px;
+  color: var(--text); line-height: 1;
+  letter-spacing: -0.02em;
+}
+.kpi-value.colored { color: var(--kpi-accent); }
+.kpi-sub {
+  margin-top: 8px; font-size: 12px; color: var(--text2);
+  display: flex; align-items: center; gap: 6px;
+}
+.kpi-badge {
+  display: inline-block; padding: 1px 7px; border-radius: 10px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  background: var(--kpi-accent-dim, var(--bg3));
+  color: var(--kpi-accent, var(--text2));
+}
+.kpi-card.k-pos .kpi-badge { background: var(--pos-dim); color: var(--pos); }
+.kpi-card.k-neg .kpi-badge { background: var(--neg-dim); color: var(--neg); }
 
-  table {
-    width:100%; border-collapse:collapse;
-  }
-  thead th {
-    padding: 10px 16px;
-    font-size:10px; font-weight:500;
-    color: var(--text-lo); letter-spacing:1.8px; text-transform:uppercase;
-    border-bottom: 1px solid var(--border);
-    text-align:left; white-space:nowrap;
-    background: var(--bg-root);
-  }
-  tbody tr {
-    border-bottom: 1px solid rgba(180,145,60,0.07);
-    transition: background var(--transition);
-  }
-  tbody tr:hover { background: var(--bg-hover); }
-  tbody tr:last-child { border-bottom:none; }
-  tbody td {
-    padding: 13px 16px;
-    font-size:13px; color: var(--text-mid);
-    vertical-align:middle;
-  }
-  .td-date { white-space:nowrap; font-size:12px; color: var(--text-lo); }
-  .td-mention { color: var(--text-hi); max-width:320px; }
-  .td-mention-text {
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:300px; display:block;
-  }
-  .td-source {
-    font-size:12px; white-space:nowrap;
-    display:flex; align-items:center; gap:6px;
-  }
-  .source-icon {
-    width:18px; height:18px; border-radius:4px;
-    background: var(--bg-panel);
-    display:flex; align-items:center; justify-content:center;
-    font-size:10px; font-weight:700;
-    color: var(--gold); flex-shrink:0;
-  }
+/* ─── CHARTS ROW ─── */
+.charts-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
 
-  .badge {
-    display:inline-block; padding:3px 9px;
-    border-radius:20px; font-size:11px; font-weight:500;
-    white-space:nowrap;
-  }
-  .badge-positive { background:rgba(75,168,136,0.15); color: var(--positive); border:1px solid rgba(75,168,136,0.3); }
-  .badge-negative { background:rgba(217,92,92,0.15);  color: var(--negative);  border:1px solid rgba(217,92,92,0.3); }
-  .badge-neutral  { background:rgba(106,136,168,0.15); color: var(--neutral);  border:1px solid rgba(106,136,168,0.3); }
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 18px;
+}
 
-  .td-reach { white-space:nowrap; font-variant-numeric: tabular-nums; }
-  .td-url a {
-    color: var(--gold); text-decoration:none; font-size:12px;
-    border-bottom: 1px solid rgba(201,168,76,0.2);
-    transition: border-color var(--transition);
-  }
-  .td-url a:hover { border-color: var(--gold); }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 13px; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-title-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gold);
+}
+.panel-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text3);
+}
 
-  /* ── EMPTY / LOADING STATES ── */
-  .state-row td {
-    text-align:center; padding:48px;
-    color: var(--text-lo); font-size:13px;
-  }
-  .state-icon { font-size:28px; margin-bottom:10px; display:block; }
+.chart-wrap { position: relative; width: 100%; height: 220px; }
 
-  /* ── SETUP BANNER ── */
-  .setup-banner {
-    background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(139,104,32,0.04));
-    border: 1px solid var(--border-med);
-    border-radius: var(--radius); padding:16px 22px;
-    margin-bottom:24px;
-    display:flex; align-items:flex-start; gap:14px;
-  }
-  .setup-banner.hidden { display:none; }
-  .setup-icon { font-size:22px; flex-shrink:0; margin-top:2px; }
-  .setup-text h3 {
-    font-size:14px; font-weight:600; color: var(--gold); margin-bottom:4px;
-  }
-  .setup-text p { font-size:12px; color: var(--text-mid); line-height:1.6; }
-  .setup-text code {
-    background: rgba(201,168,76,0.1); border:1px solid var(--border);
-    padding:1px 6px; border-radius:4px;
-    font-family:monospace; font-size:11px; color: var(--gold-light);
-  }
+/* Donut center */
+.donut-wrap { position: relative; width: 100%; height: 200px; }
+.donut-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center; pointer-events: none;
+}
+.donut-num {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: 28px; color: var(--text); line-height: 1;
+}
+.donut-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; font-family: 'DM Mono', monospace; }
 
-  /* ── FOOTER ── */
-  footer {
-    position:relative; z-index:1;
-    text-align:center; padding:20px;
-    font-size:11px; color: var(--text-lo);
-    border-top: 1px solid var(--border);
-    letter-spacing:1px;
-  }
+.legend { display: flex; flex-direction: column; gap: 8px; }
+.legend-item { display: flex; align-items: center; justify-content: space-between; }
+.legend-left { display: flex; align-items: center; gap: 8px; }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.legend-name { font-size: 12px; color: var(--text2); }
+.legend-vals { display: flex; align-items: center; gap: 8px; }
+.legend-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); font-weight: 500; }
+.legend-pct { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); }
 
-  /* ── RESPONSIVE ── */
-  @media (max-width:900px) {
-    main { padding:20px 16px; }
-    header { padding:16px 20px; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .mid-row { grid-template-columns: 1fr; }
-  }
-  @media (max-width:540px) {
-    .stats-grid { grid-template-columns:1fr; }
-    .header-right { display:none; }
-  }
+/* ─── PLATFORM + TREND ROW ─── */
+.bottom-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+/* Mini stat bars */
+.stat-bars { display: flex; flex-direction: column; gap: 10px; }
+.stat-bar-row {}
+.stat-bar-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.stat-bar-name { font-size: 12px; color: var(--text2); }
+.stat-bar-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); }
+.stat-bar-track { height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden; }
+.stat-bar-fill { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(.22,1,.36,1); }
+
+/* ─── TABLE ─── */
+.table-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.table-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 13px; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.mention-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--text3);
+  background: var(--bg3); border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: 10px;
+}
+
+.table-scroll { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left;
+  padding: 10px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; color: var(--text3);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  white-space: nowrap;
+}
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+  cursor: default;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+tbody td {
+  padding: 14px 20px;
+  font-size: 13px; color: var(--text2);
+  vertical-align: top;
+  max-width: 400px;
+}
+.td-date { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); white-space: nowrap; }
+.td-author { font-weight: 500; color: var(--text); white-space: nowrap; }
+.td-content { color: var(--text2); line-height: 1.5; }
+.td-content.highlight-dan { color: var(--text); }
+.td-content mark {
+  background: rgba(201,151,74,0.2); color: var(--gold-l);
+  padding: 0 3px; border-radius: 3px;
+}
+.platform-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  background: var(--bg4); border: 1px solid var(--border);
+  color: var(--text2); white-space: nowrap;
+}
+.sentiment-chip {
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  font-weight: 500; letter-spacing: 0.05em; white-space: nowrap;
+}
+.s-pos { background: var(--pos-dim); color: var(--pos); }
+.s-neg { background: var(--neg-dim); color: var(--neg); }
+.s-neu { background: var(--neu-dim); color: var(--neu); }
+.s-dan { background: var(--gold-dim); color: var(--gold-l); }
+
+.td-url a {
+  color: var(--text3); font-family: 'DM Mono', monospace;
+  font-size: 10px; text-decoration: none;
+  display: inline-block; max-width: 120px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: bottom;
+}
+.td-url a:hover { color: var(--gold); }
+
+.empty-state {
+  padding: 60px 24px; text-align: center;
+}
+.empty-icon { font-size: 32px; margin-bottom: 14px; opacity: 0.3; }
+.empty-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: var(--text2); margin-bottom: 8px; }
+.empty-desc { font-size: 13px; color: var(--text3); line-height: 1.6; }
+
+/* Pagination */
+.pagination {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.page-info { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); }
+.page-btns { display: flex; gap: 6px; }
+.page-btn {
+  padding: 5px 12px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text2); font-size: 12px; cursor: pointer; border-radius: 5px;
+  font-family: 'Instrument Sans', sans-serif;
+  transition: all 0.2s;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ─── DANANTARA SPOTLIGHT ─── */
+.spotlight-panel {
+  background: linear-gradient(135deg, rgba(201,151,74,0.08) 0%, rgba(201,151,74,0.03) 100%);
+  border: 1px solid rgba(201,151,74,0.25);
+  border-radius: 12px;
+  padding: 22px 24px;
+}
+.spotlight-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+}
+.spotlight-badge {
+  background: var(--gold); color: #0a0b0d;
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  font-weight: 500; letter-spacing: 0.1em;
+  padding: 3px 9px; border-radius: 3px;
+}
+.spotlight-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 13px; color: var(--gold-l);
+}
+.spotlight-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.spotlight-stat {
+  background: rgba(201,151,74,0.07);
+  border: 1px solid rgba(201,151,74,0.15);
+  border-radius: 8px; padding: 14px 16px;
+}
+.ss-num {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: 28px; color: var(--gold-l); line-height: 1;
+}
+.ss-lbl { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+/* ─── FOOTER ─── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3);
+  letter-spacing: 0.06em;
+}
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--bg3); border: 1px solid var(--gold);
+  color: var(--text); padding: 12px 18px; border-radius: 8px;
+  font-size: 13px; display: none; z-index: 999;
+  animation: toastIn 0.3s ease;
+}
+@keyframes toastIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.toast.show { display: block; }
+
+/* ─── LOADING ─── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px;
+  transition: opacity 0.5s;
+}
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.loading-logo {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: 28px; color: var(--gold-l); letter-spacing: 0.06em;
+}
+.loading-bar {
+  width: 200px; height: 2px; background: var(--bg4); border-radius: 1px; overflow: hidden;
+}
+.loading-fill {
+  height: 100%; background: var(--gold);
+  animation: load-progress 2s ease forwards;
+}
+@keyframes load-progress { from{width:0%} to{width:100%} }
+.loading-text {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3);
+  letter-spacing: 0.1em;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .charts-row { grid-template-columns: 1fr; }
+  .bottom-charts { grid-template-columns: 1fr; }
+  .spotlight-grid { grid-template-columns: 1fr 1fr; }
+  .main { padding: 20px 16px; }
+  .header { padding: 0 16px; }
+}
 </style>
 </head>
 <body>
 
-<!-- ─── HEADER ─────────────────────────────────────────────────── -->
-<header>
-  <div class="header-left">
-    <div class="logo-mark">D</div>
-    <div class="header-title">
-      <h1>Danantara Indonesia</h1>
-      <span>Brand Monitoring Dashboard</span>
+<!-- Loading screen -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">DANANTARA</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+  <div class="loading-text">INITIALIZING BRAND INTELLIGENCE...</div>
+</div>
+
+<div class="wrap">
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-emblem">
+      <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 2L31 9.5V24.5L17 32L3 24.5V9.5L17 2Z" fill="rgba(201,151,74,0.15)" stroke="#c9974a" stroke-width="1.5"/>
+        <path d="M17 8L25 12.5V21.5L17 26L9 21.5V12.5L17 8Z" fill="rgba(201,151,74,0.2)" stroke="#c9974a" stroke-width="1"/>
+        <circle cx="17" cy="17" r="3" fill="#c9974a"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-name">DANANTARA INDONESIA</div>
+      <div class="logo-tagline">Brand Intelligence Dashboard</div>
     </div>
   </div>
   <div class="header-right">
-    <div class="live-badge"><div class="live-dot"></div>Live Feed</div>
-    <div class="last-updated" id="lastUpdated">—</div>
-  </div>
-</header>
-
-<!-- ─── MAIN ────────────────────────────────────────────────────── -->
-<main>
-
-  <!-- Setup Banner (visible until Sheet ID is configured) -->
-  <div class="setup-banner" id="setupBanner">
-    <div class="setup-icon">⚙️</div>
-    <div class="setup-text">
-      <h3>Setup Required — Connect Your Google Sheet</h3>
-      <p>
-        Open this file and find <code>const SHEET_ID = ""</code> near the top of the &lt;script&gt;.
-        Paste your Google Sheet ID there. Your sheet columns must be:
-        <strong style="color:var(--text-hi)">A: Date &nbsp;|&nbsp; B: Author &nbsp;|&nbsp; C: Content &nbsp;|&nbsp; D: Platform &nbsp;|&nbsp; E: URL &nbsp;|&nbsp; F: Sentiment</strong>.
-        Sentiment values: <code>Positive</code> / <code>Neutral</code> / <code>Negative</code>.
-        Make sure the sheet is shared as <em>"Anyone with the link can view"</em>.
-      </p>
+    <div class="live-indicator">
+      <div class="live-dot"></div>
+      LIVE FEED
     </div>
-  </div>
-
-  <!-- Filter Bar -->
-  <div class="filter-bar">
-    <div class="search-wrap">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input class="search-input" type="text" id="keywordFilter" placeholder="Filter by keyword…">
-    </div>
-    <select class="filter-select" id="sentimentFilter">
-      <option value="">All Sentiments</option>
-      <option value="positive">Positive</option>
-      <option value="neutral">Neutral</option>
-      <option value="negative">Negative</option>
-    </select>
-    <select class="filter-select" id="sourceFilter">
-      <option value="">All Platforms</option>
-    </select>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    <div class="header-clock" id="clock">—</div>
+    <button class="btn" id="configBtn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/>
+      </svg>
+      Setup
+    </button>
+    <button class="btn btn-gold" id="refreshBtn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 8A6 6 0 1 1 8 2M14 2v4h-4"/>
+      </svg>
       Refresh
     </button>
   </div>
+</header>
 
-  <!-- Stat Cards -->
-  <div class="stats-grid">
-    <div class="stat-card accent">
-      <div class="stat-label">Total Mentions</div>
-      <div class="stat-value" id="totalMentions">—</div>
-      <div class="stat-sub">All time in sheet</div>
+<!-- Ticker -->
+<div class="ticker">
+  <div class="ticker-badge">MONITOR</div>
+  <div class="ticker-track">
+    <div class="ticker-inner" id="tickerInner">
+      <div class="ticker-item">
+        <strong>Danantara</strong><span class="ticker-sep">·</span>
+        Dashboard aktif · Terhubung ke Google Sheets
+        <span class="ticker-sep">·</span>
+        <strong>Filter</strong>: Semua sentimen tersedia
+        <span class="ticker-sep">·</span>
+        Setup: Masukkan Sheet ID untuk memulai
+        <span class="ticker-sep">·</span>
+        <strong>Kolom yang diperlukan</strong>: Date · Author · Content · Platform · URL · Sentiment
+        <span class="ticker-sep">·</span>
+      </div>
+      <div class="ticker-item">
+        <strong>Danantara</strong><span class="ticker-sep">·</span>
+        Dashboard aktif · Terhubung ke Google Sheets
+        <span class="ticker-sep">·</span>
+        <strong>Filter</strong>: Semua sentimen tersedia
+        <span class="ticker-sep">·</span>
+        Setup: Masukkan Sheet ID untuk memulai
+        <span class="ticker-sep">·</span>
+        <strong>Kolom yang diperlukan</strong>: Date · Author · Content · Platform · URL · Sentiment
+        <span class="ticker-sep">·</span>
+      </div>
     </div>
-    <div class="stat-card positive">
-      <div class="stat-label">Positive</div>
-      <div class="stat-value" id="totalPositive">—</div>
-      <div class="stat-sub" id="positivePct">—% of total</div>
+  </div>
+</div>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- Setup Banner -->
+  <div class="setup-banner visible" id="setupBanner">
+    <div class="setup-title">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/></svg>
+      Konfigurasi Google Sheets
     </div>
-    <div class="stat-card negative">
-      <div class="stat-label">Negative</div>
-      <div class="stat-value" id="totalNegative">—</div>
-      <div class="stat-sub" id="negativePct">—% of total</div>
+    <div class="setup-body">
+      Masukkan <code>Sheet ID</code> dari URL Google Sheet kamu. Pastikan sheet dibagikan sebagai <code>Anyone with the link — Viewer</code>.<br/>
+      Format kolom yang diperlukan: <code>A: Date</code> · <code>B: Author</code> · <code>C: Content</code> · <code>D: Platform</code> · <code>E: URL</code> · <code>F: Sentiment</code> (Positive / Neutral / Negative)
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Neutral</div>
-      <div class="stat-value" id="totalReach">—</div>
-      <div class="stat-sub" id="neutralPct">—% of total</div>
+    <div class="setup-cols">
+      <div class="setup-field">
+        <label>GOOGLE SHEET ID</label>
+        <input type="text" id="sheetIdInput" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"/>
+      </div>
+      <div class="setup-field">
+        <label>SHEET TAB NAME (opsional)</label>
+        <input type="text" id="sheetTabInput" placeholder="Sheet1"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-gold" id="connectBtn">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8A6 6 0 1 1 8 2M14 2v4h-4"/></svg>
+        Hubungkan Sheet
+      </button>
+      <button class="btn" id="closeBannerBtn">Tutup</button>
     </div>
   </div>
 
-  <!-- Charts Row -->
-  <div class="mid-row">
-    <!-- Timeline Bar Chart -->
-    <div class="chart-card">
-      <div class="card-header">
-        <div class="card-title">Mention Volume Over Time</div>
-        <div class="card-badge">Last 14 days</div>
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi-card k-gold">
+      <div class="kpi-watermark">∑</div>
+      <div class="kpi-label">Total Mentions</div>
+      <div class="kpi-value" id="kpiTotal">—</div>
+      <div class="kpi-sub">All time in sheet</div>
+    </div>
+    <div class="kpi-card k-pos">
+      <div class="kpi-watermark">↑</div>
+      <div class="kpi-label">Positive</div>
+      <div class="kpi-value colored" id="kpiPos">—</div>
+      <div class="kpi-sub"><span class="kpi-badge" id="kpiPosPct">—%</span> dari total</div>
+    </div>
+    <div class="kpi-card k-neg">
+      <div class="kpi-watermark">↓</div>
+      <div class="kpi-label">Negative</div>
+      <div class="kpi-value colored" id="kpiNeg">—</div>
+      <div class="kpi-sub"><span class="kpi-badge" id="kpiNegPct">—%</span> dari total</div>
+    </div>
+    <div class="kpi-card k-neu">
+      <div class="kpi-watermark">◦</div>
+      <div class="kpi-label">Neutral</div>
+      <div class="kpi-value" id="kpiNeu">—</div>
+      <div class="kpi-sub"><span class="kpi-badge" id="kpiNeuPct">—%</span> dari total</div>
+    </div>
+  </div>
+
+  <!-- Danantara Spotlight -->
+  <div class="spotlight-panel" id="danSpotlight" style="display:none">
+    <div class="spotlight-header">
+      <div class="spotlight-badge">DANANTARA ALERT</div>
+      <div class="spotlight-title">Mentions yang menyebut "Danantara" terdeteksi</div>
+    </div>
+    <div class="spotlight-grid" id="danStats"></div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot"></div>
+          Volume Mention — 14 Hari Terakhir
+        </div>
+        <div class="panel-meta" id="chartMeta">—</div>
       </div>
-      <div class="chart-container">
-        <canvas id="timelineChart"></canvas>
+      <div class="chart-wrap">
+        <canvas id="trendChart" role="img" aria-label="Mention volume over the last 14 days">No data yet.</canvas>
       </div>
     </div>
-
-    <!-- Sentiment Donut -->
-    <div class="donut-card">
-      <div class="card-header">
-        <div class="card-title">Sentiment Split</div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot" style="background:var(--teal)"></div>
+          Sentimen
+        </div>
       </div>
       <div class="donut-wrap">
-        <canvas id="sentimentChart" width="160" height="160" style="max-width:160px;max-height:160px;"></canvas>
+        <canvas id="sentChart" role="img" aria-label="Sentiment split donut chart">No data yet.</canvas>
         <div class="donut-center">
-          <div class="donut-center-val" id="donutTotal">—</div>
-          <div class="donut-center-lbl">Mentions</div>
+          <div class="donut-num" id="donutTotal">—</div>
+          <div class="donut-lbl">Mentions</div>
         </div>
       </div>
-      <div class="sentiment-legend">
-        <div class="legend-item">
-          <div class="legend-label"><div class="legend-dot" style="background:var(--positive)"></div>Positive</div>
-          <div class="legend-val" id="lgPositive">—</div>
-        </div>
-        <div class="legend-item">
-          <div class="legend-label"><div class="legend-dot" style="background:var(--neutral)"></div>Neutral</div>
-          <div class="legend-val" id="lgNeutral">—</div>
-        </div>
-        <div class="legend-item">
-          <div class="legend-label"><div class="legend-dot" style="background:var(--negative)"></div>Negative</div>
-          <div class="legend-val" id="lgNegative">—</div>
-        </div>
+      <div class="legend" id="sentLegend"></div>
+    </div>
+  </div>
+
+  <!-- Bottom charts row -->
+  <div class="bottom-charts">
+    <div class="panel">
+      <div class="panel-title" style="margin-bottom:14px">
+        <div class="panel-title-dot" style="background:var(--blue)"></div>
+        Platform Distribution
+      </div>
+      <div class="stat-bars" id="platformBars">
+        <div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">Waiting for data...</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title" style="margin-bottom:14px">
+        <div class="panel-title-dot" style="background:var(--red)"></div>
+        Kata Kunci Dominan
+      </div>
+      <div class="stat-bars" id="keywordBars">
+        <div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">Waiting for data...</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title" style="margin-bottom:14px">
+        <div class="panel-title-dot" style="background:var(--pos)"></div>
+        Top Authors
+      </div>
+      <div class="stat-bars" id="authorBars">
+        <div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">Waiting for data...</div>
       </div>
     </div>
   </div>
 
-  <!-- Live Feed Table -->
-  <div class="table-card">
-    <div class="card-header" style="margin-bottom:0; padding-bottom:16px;">
-      <div class="card-title">Live Mention Feed</div>
-      <div class="card-badge" id="feedCount">0 mentions</div>
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div class="filter-label">FILTER</div>
+    <div class="filter-pills">
+      <button class="pill active" data-filter="all">Semua</button>
+      <button class="pill pos-pill" data-filter="positive">Positive</button>
+      <button class="pill neg-pill" data-filter="negative">Negative</button>
+      <button class="pill neu-pill" data-filter="neutral">Neutral</button>
+    </div>
+    <div class="filter-divider"></div>
+    <div class="filter-pills" id="platformPills">
+      <!-- Dynamic platform pills -->
+    </div>
+    <div class="search-wrap">
+      <div class="search-icon">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="6.5" cy="6.5" r="4.5"/><path d="M10 10l3.5 3.5"/>
+        </svg>
+      </div>
+      <input type="text" id="searchInput" placeholder="Cari mention..."/>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-panel">
+    <div class="table-header">
+      <div class="table-title">
+        <div class="panel-title-dot"></div>
+        Live Mention Feed
+        <span class="mention-count" id="mentionCount">0 mentions</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)">Sort:</div>
+        <select id="sortSelect" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:5px 10px;border-radius:5px;font-size:11px;font-family:'DM Mono',monospace;outline:none">
+          <option value="date-desc">Terbaru</option>
+          <option value="date-asc">Terlama</option>
+          <option value="sent-pos">Positive Dulu</option>
+          <option value="sent-neg">Negative Dulu</option>
+        </select>
+      </div>
     </div>
     <div class="table-scroll">
-      <table id="mentionsTable">
+      <table>
         <thead>
           <tr>
             <th>Date</th>
@@ -544,316 +863,441 @@
             <th>URL</th>
           </tr>
         </thead>
-        <tbody id="mentionsBody">
-          <tr class="state-row"><td colspan="6"><span class="state-icon">⏳</span>Loading data…</td></tr>
+        <tbody id="feedBody">
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">
+                <div class="empty-icon">◈</div>
+                <div class="empty-title">Belum ada data</div>
+                <div class="empty-desc">Masukkan Google Sheet ID di atas lalu klik "Hubungkan Sheet" untuk mulai memantau.</div>
+              </div>
+            </td>
+          </tr>
         </tbody>
       </table>
+    </div>
+    <div class="pagination">
+      <div class="page-info" id="pageInfo">—</div>
+      <div class="page-btns">
+        <button class="page-btn" id="prevBtn" disabled>← Prev</button>
+        <button class="page-btn" id="nextBtn" disabled>Next →</button>
+      </div>
     </div>
   </div>
 
 </main>
 
 <footer>
-  DANANTARA INDONESIA &nbsp;·&nbsp; Brand Intelligence &nbsp;·&nbsp; Powered by Clabstream
+  <div>DANANTARA INDONESIA · Brand Intelligence · Powered by Google Sheets</div>
+  <div id="lastUpdate">Last update: —</div>
 </footer>
 
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   ⚙️  CONFIGURATION  — edit this one value
-   ═══════════════════════════════════════════════════════════════ */
-const SHEET_ID   = "1otSZvSsZDXwjqX2clv-ua-ROajlKGBu9SWA2HyuURl4";          // ← paste your Google Sheet ID here
-const SHEET_NAME = "Sheet1";    // ← change if your tab name differs
-const REFRESH_INTERVAL = 60;    // seconds between auto-refresh
+// ─── CONFIG ───
+const SHEET_ID_KEY = 'dan_sheet_id';
+const SHEET_TAB_KEY = 'dan_sheet_tab';
+let SHEET_ID = localStorage.getItem(SHEET_ID_KEY) || '';
+let SHEET_TAB = localStorage.getItem(SHEET_TAB_KEY) || 'Sheet1';
 
-/* ═══════════════════════════════════════════════════════════════
-   GLOBALS
-   ═══════════════════════════════════════════════════════════════ */
-let allRows      = [];
-let timelineInst = null;
-let donutInst    = null;
-let refreshTimer = null;
-let countdown    = REFRESH_INTERVAL;
+let allData = [];
+let filteredData = [];
+let currentPage = 1;
+const PER_PAGE = 20;
+let activeSentiment = 'all';
+let activePlatform = 'all';
+let searchQuery = '';
+let sortMode = 'date-desc';
+let trendChart = null;
+let sentChart = null;
 
-/* ═══════════════════════════════════════════════════════════════
-   LOAD DATA FROM GOOGLE SHEETS
-   ═══════════════════════════════════════════════════════════════ */
-async function loadData() {
-  if (!SHEET_ID) {
-    showState("⚙️", "Configure your Sheet ID in the script to see data.");
-    return;
+// ─── CLOCK ───
+setInterval(() => {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleString('id-ID', {
+    day:'2-digit', month:'short', year:'numeric',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}, 1000);
+
+// ─── LOADING ───
+setTimeout(() => {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  if (SHEET_ID) {
+    document.getElementById('sheetIdInput').value = SHEET_ID;
+    document.getElementById('sheetTabInput').value = SHEET_TAB;
+    fetchData();
   }
+}, 2200);
 
-  document.getElementById("setupBanner").classList.add("hidden");
-  showState("⏳", "Fetching latest mentions…");
+// ─── SETUP BANNER ───
+document.getElementById('configBtn').addEventListener('click', () => {
+  document.getElementById('setupBanner').classList.toggle('visible');
+});
+document.getElementById('closeBannerBtn').addEventListener('click', () => {
+  document.getElementById('setupBanner').classList.remove('visible');
+});
+document.getElementById('connectBtn').addEventListener('click', () => {
+  const id = document.getElementById('sheetIdInput').value.trim();
+  const tab = document.getElementById('sheetTabInput').value.trim() || 'Sheet1';
+  if (!id) { showToast('⚠ Masukkan Sheet ID terlebih dahulu'); return; }
+  SHEET_ID = id; SHEET_TAB = tab;
+  localStorage.setItem(SHEET_ID_KEY, id);
+  localStorage.setItem(SHEET_TAB_KEY, tab);
+  document.getElementById('setupBanner').classList.remove('visible');
+  fetchData();
+});
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  if (!SHEET_ID) { showToast('⚠ Setup Google Sheet ID dulu'); return; }
+  fetchData();
+});
 
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
-
+// ─── FETCH ───
+async function fetchData() {
+  if (!SHEET_ID) return;
+  showToast('🔄 Mengambil data...');
+  const url = `https://docs.google.com/spreadsheets/d/${1otSZvSsZDXwjqX2clv-ua-ROajlKGBu9SWA2HyuURl4}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_TAB)}`;
   try {
-    const res  = await fetch(url);
+    const res = await fetch(url);
     const text = await res.text();
-
-    // Strip JSONP wrapper: google.visualization.Query.setResponse({...});
     const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
     const rows = json.table.rows;
+    if (!rows || rows.length === 0) {
+      showToast('⚠ Sheet kosong atau format tidak sesuai');
+      renderEmpty();
+      return;
+    }
+    allData = rows.map(r => ({
+      date:      r.c[0]?.v || r.c[0]?.f || '',
+      author:    r.c[1]?.v || '',
+      content:   r.c[2]?.v || '',
+      platform:  r.c[3]?.v || 'Unknown',
+      url:       r.c[4]?.v || '',
+      sentiment: r.c[5]?.v || 'Neutral',
+    })).filter(r => r.content);
 
-    allRows = rows.map(r => {
-      const c = r.c || [];
-      const val = (i) => (c[i] && c[i].v !== null && c[i].v !== undefined) ? String(c[i].v).trim() : "";
-      return {
-        date:      val(0),
-        author:    val(1),
-        content:   val(2),
-        platform:  val(3),
-        url:       val(4),
-        sentiment: val(5).toLowerCase(),
-      };
-    }).filter(r => r.date);
-
-    updateSourceFilter();
-    renderAll();
-    updateTimestamp();
-    startCountdown();
+    document.getElementById('lastUpdate').textContent = 'Last update: ' + new Date().toLocaleTimeString('id-ID');
+    showToast('✓ ' + allData.length + ' mention dimuat');
+    updateDashboard();
+    updateTicker();
   } catch(e) {
-    showState("⚠️", `Could not load data. Check your Sheet ID and sharing settings. (${e.message})`);
+    showToast('✕ Gagal mengambil data. Cek Sheet ID & izin akses.');
+    renderEmpty();
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FILTER & RENDER
-   ═══════════════════════════════════════════════════════════════ */
-function filteredRows() {
-  const kw  = document.getElementById("keywordFilter").value.toLowerCase();
-  const sen = document.getElementById("sentimentFilter").value.toLowerCase();
-  const src = document.getElementById("sourceFilter").value.toLowerCase();
-  return allRows.filter(r =>
-    (!kw  || (r.content||"").toLowerCase().includes(kw) || (r.author||"").toLowerCase().includes(kw)) &&
-    (!sen || r.sentiment === sen) &&
-    (!src || (r.platform||"").toLowerCase() === src)
-  );
+function renderEmpty() {
+  document.getElementById('feedBody').innerHTML = `
+    <tr><td colspan="6">
+      <div class="empty-state">
+        <div class="empty-icon">◈</div>
+        <div class="empty-title">Data tidak ditemukan</div>
+        <div class="empty-desc">Pastikan Sheet ID benar, sheet dibagikan sebagai Viewer, dan format kolom sesuai.</div>
+      </div>
+    </td></tr>`;
 }
 
-function renderAll() {
-  const rows = filteredRows();
-  renderStats(rows);
-  renderTable(rows);
-  renderTimeline(rows);
-  renderDonut(rows);
-  document.getElementById("feedCount").textContent = `${rows.length} mention${rows.length!==1?"s":""}`;
+// ─── DASHBOARD UPDATE ───
+function updateDashboard() {
+  const total = allData.length;
+  const pos   = allData.filter(r => r.sentiment.toLowerCase().includes('pos')).length;
+  const neg   = allData.filter(r => r.sentiment.toLowerCase().includes('neg')).length;
+  const neu   = total - pos - neg;
+
+  document.getElementById('kpiTotal').textContent = total.toLocaleString('id-ID');
+  document.getElementById('kpiPos').textContent   = pos.toLocaleString('id-ID');
+  document.getElementById('kpiNeg').textContent   = neg.toLocaleString('id-ID');
+  document.getElementById('kpiNeu').textContent   = neu.toLocaleString('id-ID');
+  document.getElementById('kpiPosPct').textContent = total ? Math.round(pos/total*100)+'%' : '—%';
+  document.getElementById('kpiNegPct').textContent = total ? Math.round(neg/total*100)+'%' : '—%';
+  document.getElementById('kpiNeuPct').textContent = total ? Math.round(neu/total*100)+'%' : '—%';
+  document.getElementById('donutTotal').textContent = total.toLocaleString('id-ID');
+
+  updateTrendChart();
+  updateSentChart(pos, neg, neu, total);
+  updatePlatformBars();
+  updateKeywordBars();
+  updateAuthorBars();
+  updatePlatformPills();
+  updateDanantaraSpotlight();
+  applyFilters();
 }
 
-/* ── STATS ── */
-function renderStats(rows) {
-  const pos = rows.filter(r => r.sentiment === "positive").length;
-  const neg = rows.filter(r => r.sentiment === "negative").length;
-  const tot = rows.length;
-
-  document.getElementById("totalMentions").textContent = fmt(tot);
-  document.getElementById("totalPositive").textContent = fmt(pos);
-  document.getElementById("totalNegative").textContent = fmt(neg);
-  document.getElementById("totalReach").textContent    = fmt(rows.filter(r => r.sentiment === "neutral").length);
-  document.getElementById("positivePct").textContent   = `${tot ? Math.round(pos/tot*100) : 0}% of total`;
-  document.getElementById("negativePct").textContent   = `${tot ? Math.round(neg/tot*100) : 0}% of total`;
-  const neu2 = tot - pos - neg;
-  if (document.getElementById("neutralPct"))
-    document.getElementById("neutralPct").textContent = `${tot ? Math.round(neu2/tot*100) : 0}% of total`;
-}
-
-/* ── TABLE ── */
-function renderTable(rows) {
-  const tbody = document.getElementById("mentionsBody");
-  if (!rows.length) {
-    tbody.innerHTML = `<tr class="state-row"><td colspan="6"><span class="state-icon">🔍</span>No mentions match your filters.</td></tr>`;
-    return;
+function updateTrendChart() {
+  const days = 14;
+  const labels = [];
+  const counts = [];
+  for (let i = days-1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const label = d.toLocaleDateString('id-ID', {day:'2-digit',month:'short'});
+    labels.push(label);
+    const ds = d.toISOString().split('T')[0];
+    counts.push(allData.filter(r => (r.date+'').includes(ds) || r.date === label).length);
   }
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td class="td-date">${escHtml(r.date)}</td>
-      <td class="td-source"><span class="source-icon">${sourceIcon(r.platform)}</span>${escHtml(r.author||"—")}</td>
-      <td class="td-mention"><span class="td-mention-text" title="${escHtml(r.content)}">${r.content ? escHtml(r.content) : '<em style="color:var(--text-lo)">API restricted</em>'}</span></td>
-      <td class="td-source">${escHtml(r.platform||"—")}</td>
-      <td>${sentimentBadge(r.sentiment)}</td>
-      <td class="td-url">${r.url ? `<a href="${escHtml(r.url)}" target="_blank" rel="noopener">View ↗</a>` : "—"}</td>
-    </tr>
-  `).join("");
-}
+  document.getElementById('chartMeta').textContent = labels[0] + ' – ' + labels[labels.length-1];
 
-/* ── TIMELINE CHART ── */
-function renderTimeline(rows) {
-  const buckets = {};
-  rows.forEach(r => {
-    const key = r.date.slice(0,10) || "Unknown";
-    buckets[key] = (buckets[key] || 0) + 1;
-  });
-
-  const labels = Object.keys(buckets).sort().slice(-14);
-  const data   = labels.map(l => buckets[l]);
-
-  const ctx = document.getElementById("timelineChart").getContext("2d");
-
-  if (timelineInst) timelineInst.destroy();
-
-  const gradient = ctx.createLinearGradient(0,0,0,220);
-  gradient.addColorStop(0, "rgba(201,168,76,0.25)");
-  gradient.addColorStop(1, "rgba(201,168,76,0.01)");
-
-  timelineInst = new Chart(ctx, {
-    type: "bar",
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
     data: {
       labels,
       datasets: [{
-        label: "Mentions",
-        data,
-        backgroundColor: gradient,
-        borderColor: "rgba(201,168,76,0.7)",
-        borderWidth: 1.5,
-        borderRadius: 4,
-        borderSkipped: false,
+        data: counts,
+        borderColor: '#c9974a',
+        backgroundColor: 'rgba(201,151,74,0.08)',
+        borderWidth: 2,
+        pointBackgroundColor: '#c9974a',
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        fill: true,
+        tension: 0.4,
       }]
     },
     options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins: {
-        legend: { display:false },
-        tooltip: {
-          backgroundColor:"#0C1825", borderColor:"rgba(201,168,76,0.4)", borderWidth:1,
-          titleColor:"#C9A84C", bodyColor:"#A8B4C0",
-          padding:10, cornerRadius:8,
-        }
-      },
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#181e28', borderColor: '#c9974a', borderWidth: 1,
+        titleColor: '#c9974a', bodyColor: '#8896aa',
+        callbacks: { title: i => i[0].label, label: i => ' ' + i.raw + ' mentions' }
+      }},
       scales: {
-        x: {
-          grid: { color:"rgba(255,255,255,0.04)" },
-          ticks: { color:"#4A5868", font:{size:11} }
-        },
-        y: {
-          grid: { color:"rgba(255,255,255,0.04)" },
-          ticks: { color:"#4A5868", font:{size:11}, precision:0 },
-          beginAtZero:true
-        }
+        x: { ticks: { color: '#4a5668', font: { size: 10, family: "'DM Mono'" }, maxRotation: 45, autoSkip: false },
+             grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+        y: { ticks: { color: '#4a5668', font: { size: 10, family: "'DM Mono'" } },
+             grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }, beginAtZero: true }
       }
     }
   });
 }
 
-/* ── DONUT CHART ── */
-function renderDonut(rows) {
-  const pos = rows.filter(r => r.sentiment === "positive").length;
-  const neg = rows.filter(r => r.sentiment === "negative").length;
-  const neu = rows.filter(r => r.sentiment !== "positive" && r.sentiment !== "negative").length;
-  const tot = rows.length;
-
-  document.getElementById("donutTotal").textContent = fmt(tot);
-  document.getElementById("lgPositive").textContent = fmt(pos);
-  document.getElementById("lgNeutral").textContent  = fmt(neu);
-  document.getElementById("lgNegative").textContent = fmt(neg);
-
-  const ctx = document.getElementById("sentimentChart").getContext("2d");
-  if (donutInst) donutInst.destroy();
-
-  donutInst = new Chart(ctx, {
-    type:"doughnut",
+function updateSentChart(pos, neg, neu, total) {
+  if (sentChart) sentChart.destroy();
+  const noData = total === 0;
+  sentChart = new Chart(document.getElementById('sentChart'), {
+    type: 'doughnut',
     data: {
-      labels:["Positive","Neutral","Negative"],
-      datasets:[{
-        data: [pos, neu, neg],
-        backgroundColor:["rgba(75,168,136,0.85)","rgba(106,136,168,0.85)","rgba(217,92,92,0.85)"],
-        borderColor:["#4BA888","#6A88A8","#D95C5C"],
-        borderWidth:1.5,
-        hoverOffset:6,
+      labels: ['Positive','Negative','Neutral'],
+      datasets: [{
+        data: noData ? [1,1,1] : [pos, neg, neu],
+        backgroundColor: noData
+          ? ['rgba(255,255,255,0.05)','rgba(255,255,255,0.05)','rgba(255,255,255,0.05)']
+          : ['#34d399','#f87171','#94a3b8'],
+        borderColor: '#0d1117', borderWidth: 3,
+        hoverOffset: 6,
       }]
     },
     options: {
-      cutout:"72%",
-      responsive:true, maintainAspectRatio:true,
-      plugins: {
-        legend:{display:false},
-        tooltip:{
-          backgroundColor:"#0C1825", borderColor:"rgba(201,168,76,0.4)", borderWidth:1,
-          titleColor:"#C9A84C", bodyColor:"#A8B4C0",
-          padding:10, cornerRadius:8,
-        }
-      }
+      responsive: true, maintainAspectRatio: false,
+      cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#181e28', borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+        titleColor: '#e8edf5', bodyColor: '#8896aa',
+      }}
     }
+  });
+  const total2 = pos+neg+neu || 1;
+  document.getElementById('sentLegend').innerHTML = [
+    { name:'Positive', count:pos, color:'#34d399' },
+    { name:'Negative', count:neg, color:'#f87171' },
+    { name:'Neutral',  count:neu, color:'#94a3b8' },
+  ].map(s => `
+    <div class="legend-item">
+      <div class="legend-left">
+        <div class="legend-dot" style="background:${s.color}"></div>
+        <div class="legend-name">${s.name}</div>
+      </div>
+      <div class="legend-vals">
+        <div class="legend-count">${s.count.toLocaleString('id-ID')}</div>
+        <div class="legend-pct">${Math.round(s.count/total2*100)}%</div>
+      </div>
+    </div>`).join('');
+}
+
+function updatePlatformBars() {
+  const counts = {};
+  allData.forEach(r => { const p = r.platform||'Unknown'; counts[p] = (counts[p]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const max = sorted[0]?.[1] || 1;
+  const colors = ['#60a5fa','#c9974a','#34d399','#f87171','#2dd4bf','#94a3b8'];
+  document.getElementById('platformBars').innerHTML = sorted.length
+    ? sorted.map(([name,cnt],i) => statBar(name, cnt, max, colors[i%colors.length])).join('')
+    : '<div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">No data</div>';
+  setTimeout(() => {
+    document.querySelectorAll('#platformBars .stat-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 100);
+}
+
+function updateKeywordBars() {
+  const keywords = ['danantara','bni','korupsi','bank','uang','oknum','pemerintah','bumn','investasi'];
+  const counts = keywords.map(kw => ({
+    name: kw,
+    cnt: allData.filter(r => (r.content||'').toLowerCase().includes(kw)).length
+  })).filter(k => k.cnt > 0).sort((a,b) => b.cnt-a.cnt).slice(0,6);
+  const max = counts[0]?.cnt || 1;
+  const colors = ['#c9974a','#f87171','#34d399','#60a5fa','#2dd4bf','#94a3b8'];
+  document.getElementById('keywordBars').innerHTML = counts.length
+    ? counts.map(({name,cnt},i) => statBar(name, cnt, max, colors[i%colors.length])).join('')
+    : '<div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">No keywords found</div>';
+  setTimeout(() => {
+    document.querySelectorAll('#keywordBars .stat-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 100);
+}
+
+function updateAuthorBars() {
+  const counts = {};
+  allData.forEach(r => { if(r.author) counts[r.author] = (counts[r.author]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const max = sorted[0]?.[1] || 1;
+  document.getElementById('authorBars').innerHTML = sorted.length
+    ? sorted.map(([name,cnt]) => statBar(name, cnt, max, '#34d399')).join('')
+    : '<div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center">No data</div>';
+  setTimeout(() => {
+    document.querySelectorAll('#authorBars .stat-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 100);
+}
+
+function statBar(name, count, max, color) {
+  const pct = Math.round(count / max * 100);
+  return `<div class="stat-bar-row">
+    <div class="stat-bar-header">
+      <div class="stat-bar-name">${esc(name)}</div>
+      <div class="stat-bar-num">${count}</div>
+    </div>
+    <div class="stat-bar-track">
+      <div class="stat-bar-fill" data-w="${pct}" style="width:0%;background:${color}"></div>
+    </div>
+  </div>`;
+}
+
+function updatePlatformPills() {
+  const platforms = [...new Set(allData.map(r => r.platform||'Unknown'))];
+  const container = document.getElementById('platformPills');
+  container.innerHTML = platforms.slice(0,5).map(p => `
+    <button class="pill" data-platform="${esc(p)}">${esc(p)}</button>`).join('');
+  container.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activePlatform = activePlatform === btn.dataset.platform ? 'all' : btn.dataset.platform;
+      container.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      if (activePlatform !== 'all') btn.classList.add('active');
+      currentPage = 1; applyFilters();
+    });
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════════════════════════ */
-function showState(icon, msg) {
-  document.getElementById("mentionsBody").innerHTML =
-    `<tr class="state-row"><td colspan="6"><span class="state-icon">${icon}</span>${msg}</td></tr>`;
+function updateDanantaraSpotlight() {
+  const dan = allData.filter(r => (r.content||'').toLowerCase().includes('danantara'));
+  if (dan.length === 0) { document.getElementById('danSpotlight').style.display = 'none'; return; }
+  document.getElementById('danSpotlight').style.display = 'block';
+  const pos = dan.filter(r => r.sentiment.toLowerCase().includes('pos')).length;
+  const neg = dan.filter(r => r.sentiment.toLowerCase().includes('neg')).length;
+  document.getElementById('danStats').innerHTML = [
+    { num: dan.length, lbl: 'Total Mentions' },
+    { num: pos, lbl: 'Positive Context' },
+    { num: neg, lbl: 'Negative Context' },
+  ].map(s => `<div class="spotlight-stat"><div class="ss-num">${s.num}</div><div class="ss-lbl">${s.lbl}</div></div>`).join('');
 }
 
-function updateTimestamp() {
-  const now = new Date();
-  document.getElementById("lastUpdated").textContent =
-    `Updated ${now.toLocaleTimeString("id-ID", {hour:"2-digit",minute:"2-digit"})} WIB`;
+function updateTicker() {
+  const total = allData.length;
+  const pos   = allData.filter(r => r.sentiment.toLowerCase().includes('pos')).length;
+  const neg   = allData.filter(r => r.sentiment.toLowerCase().includes('neg')).length;
+  const dan   = allData.filter(r => (r.content||'').toLowerCase().includes('danantara')).length;
+  const html  = `<strong>${total}</strong> total mentions · <strong>${pos}</strong> positive · <strong>${neg}</strong> negative · <strong>Danantara</strong> disebut <strong>${dan}x</strong>`;
+  document.getElementById('tickerInner').innerHTML = [html, html].map(h =>
+    `<div class="ticker-item">${h} <span class="ticker-sep">·</span></div>`).join('');
 }
 
-function updateSourceFilter() {
-  const sources = [...new Set(allRows.map(r => r.platform).filter(Boolean))].sort();
-  const sel = document.getElementById("sourceFilter");
-  const cur = sel.value;
-  sel.innerHTML = `<option value="">All Platforms</option>` +
-    sources.map(s => `<option value="${s.toLowerCase()}"${s.toLowerCase()===cur?" selected":""}>${escHtml(s)}</option>`).join("");
+// ─── FILTERS & TABLE ───
+function applyFilters() {
+  let data = [...allData];
+  if (activeSentiment !== 'all')
+    data = data.filter(r => r.sentiment.toLowerCase().includes(activeSentiment));
+  if (activePlatform !== 'all')
+    data = data.filter(r => r.platform === activePlatform);
+  if (searchQuery)
+    data = data.filter(r =>
+      (r.content||'').toLowerCase().includes(searchQuery) ||
+      (r.author||'').toLowerCase().includes(searchQuery));
+  if (sortMode === 'sent-pos') data.sort((a,b) => (b.sentiment.toLowerCase().includes('pos')?1:0) - (a.sentiment.toLowerCase().includes('pos')?1:0));
+  else if (sortMode === 'sent-neg') data.sort((a,b) => (b.sentiment.toLowerCase().includes('neg')?1:0) - (a.sentiment.toLowerCase().includes('neg')?1:0));
+  filteredData = data;
+  renderTable();
 }
 
-function sentimentBadge(s) {
-  if (s === "positive") return `<span class="badge badge-positive">✦ Positive</span>`;
-  if (s === "negative") return `<span class="badge badge-negative">✦ Negative</span>`;
-  return `<span class="badge badge-neutral">◈ Neutral</span>`;
+function renderTable() {
+  const total = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  currentPage = Math.min(currentPage, totalPages);
+  const start = (currentPage-1) * PER_PAGE;
+  const slice = filteredData.slice(start, start + PER_PAGE);
+  document.getElementById('mentionCount').textContent = total.toLocaleString('id-ID') + ' mentions';
+  document.getElementById('pageInfo').textContent = `${start+1}–${Math.min(start+PER_PAGE,total)} of ${total}`;
+  document.getElementById('prevBtn').disabled = currentPage <= 1;
+  document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+
+  if (slice.length === 0) { renderEmpty(); return; }
+
+  document.getElementById('feedBody').innerHTML = slice.map(r => {
+    const isDan = (r.content||'').toLowerCase().includes('danantara');
+    const sentClass = r.sentiment.toLowerCase().includes('pos') ? 's-pos'
+                    : r.sentiment.toLowerCase().includes('neg') ? 's-neg' : 's-neu';
+    const content = isDan
+      ? esc(r.content).replace(/danantara/gi, '<mark>Danantara</mark>')
+      : esc(r.content);
+    return `<tr>
+      <td class="td-date">${esc(r.date||'—')}</td>
+      <td class="td-author">${esc(r.author||'—')}</td>
+      <td class="td-content ${isDan?'highlight-dan':''}">${content}</td>
+      <td><span class="platform-badge">${esc(r.platform||'—')}</span></td>
+      <td><span class="sentiment-chip ${isDan?'s-dan':sentClass}">${isDan?'⚑ DANANTARA':esc(r.sentiment||'Neutral')}</span></td>
+      <td class="td-url">${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>` : '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
-function sourceIcon(s) {
-  const map = {
-    twitter:"𝕏", x:"𝕏", instagram:"IG", facebook:"FB", youtube:"YT",
-    tiktok:"TK", linkedin:"LI", news:"N", blog:"BL", kompas:"KM",
-    detik:"DK", tribun:"TR", cnbc:"CB",
-  };
-  const k = (s||"").toLowerCase().split(".")[0];
-  for (const [key, icon] of Object.entries(map)) {
-    if (k.includes(key)) return icon;
-  }
-  return (s||"?").slice(0,2).toUpperCase();
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function fmt(n)       { return n.toLocaleString("id-ID"); }
-function fmtReach(n)  {
-  if (n >= 1_000_000) return (n/1_000_000).toFixed(1)+"M";
-  if (n >= 1_000)     return (n/1_000).toFixed(1)+"K";
-  return n.toLocaleString("id-ID");
-}
-function escHtml(s) {
-  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
+// ─── FILTER EVENTS ───
+document.querySelectorAll('.filter-pills .pill[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeSentiment = btn.dataset.filter;
+    document.querySelectorAll('.filter-pills .pill[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPage = 1; applyFilters();
+  });
+});
 
-/* ── AUTO-REFRESH COUNTDOWN ── */
-function startCountdown() {
-  clearInterval(refreshTimer);
-  countdown = REFRESH_INTERVAL;
-  refreshTimer = setInterval(() => {
-    countdown--;
-    document.getElementById("lastUpdated").textContent =
-      `Auto-refresh in ${countdown}s`;
-    if (countdown <= 0) loadData();
-  }, 1000);
-}
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  currentPage = 1; applyFilters();
+});
 
-/* ── FILTER EVENTS ── */
-document.getElementById("keywordFilter").addEventListener("input", renderAll);
-document.getElementById("sentimentFilter").addEventListener("change", renderAll);
-document.getElementById("sourceFilter").addEventListener("change", renderAll);
+document.getElementById('sortSelect').addEventListener('change', e => {
+  sortMode = e.target.value;
+  currentPage = 1; applyFilters();
+});
 
-/* ── INIT ── */
-if (!SHEET_ID) {
-  document.getElementById("totalMentions").textContent = "—";
-  document.getElementById("totalPositive").textContent = "—";
-  document.getElementById("totalNegative").textContent = "—";
-  document.getElementById("totalReach").textContent    = "—";
-  showState("⚙️", "Paste your Google Sheet ID in the script to begin.");
-} else {
-  loadData();
+document.getElementById('prevBtn').addEventListener('click', () => { currentPage--; renderTable(); });
+document.getElementById('nextBtn').addEventListener('click', () => { currentPage++; renderTable(); });
+
+// ─── TOAST ───
+let toastTimeout;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 3200);
 }
 </script>
 </body>
