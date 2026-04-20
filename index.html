@@ -959,7 +959,7 @@ document.getElementById('refreshBtn').addEventListener('click', () => {
 async function fetchData() {
   if (!SHEET_ID) return;
   showToast('🔄 Mengambil data...');
-  const url = `https://docs.google.com/spreadsheets/d/${1otSZvSsZDXwjqX2clv-ua-ROajlKGBu9SWA2HyuURl4}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_TAB)}`;
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_TAB)}`;
   try {
     const res = await fetch(url);
     const text = await res.text();
